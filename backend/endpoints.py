@@ -12,6 +12,12 @@ def extract_timestamp(filename: str) -> datetime:
     return datetime.strptime(ts_str, "%Y-%m-%d-%H%M").replace(tzinfo=timezone.utc)
 
 
+def parse_isoformat_z(dt_str: str) -> datetime:
+    if dt_str.endswith("Z"):
+        dt_str = dt_str.replace("Z", "+00:00")
+    return datetime.fromisoformat(dt_str).astimezone(timezone.utc)
+
+
 @endpoints.route("/api/raincz/list", methods=["GET"])
 def maxz_list():
     start_str = request.args.get("start")
@@ -21,8 +27,8 @@ def maxz_list():
         abort(400, "'start' and 'end' query parameters are required (ISO format)")
 
     try:
-        start_dt = datetime.fromisoformat(start_str).astimezone(timezone.utc)
-        end_dt = datetime.fromisoformat(end_str).astimezone(timezone.utc)
+        start_dt = parse_isoformat_z(start_str)
+        end_dt = parse_isoformat_z(end_str)
 
         print(start_dt)
     except ValueError:
