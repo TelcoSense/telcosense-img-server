@@ -42,7 +42,7 @@ def maxz_list():
             ts = extract_timestamp(filename)
             if start_dt <= ts <= end_dt:
                 results.append(
-                    {"timestamp": ts.isoformat(), "url": f"/api/raincz/{filename}"}
+                    {"timestamp": ts.isoformat(), "url": f"/raincz/{filename}"}
                 )
         except ValueError:
             continue
