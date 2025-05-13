@@ -9,7 +9,7 @@ endpoints = Blueprint("endpoints", __name__)
 
 def extract_timestamp(filename: str) -> datetime:
     ts_str = filename[:-4]
-    return datetime.strptime(ts_str, "%Y-%m-%d-%H%M").replace(tzinfo=timezone.utc)
+    return datetime.strptime(ts_str, "%Y-%m-%d_%H%M").replace(tzinfo=timezone.utc)
 
 
 def parse_isoformat_z(dt_str: str) -> datetime:
