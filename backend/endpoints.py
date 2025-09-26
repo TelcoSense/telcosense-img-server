@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, abort, jsonify, request, send_from_directory
 
-from backend.app_config import RAINCZ_DIR, TEMPCZ_DIR
+from backend.app_config import IMG_DIRS
 
 endpoints = Blueprint("endpoints", __name__)
 
@@ -18,8 +18,12 @@ def parse_isoformat_z(dt_str: str) -> datetime:
     return datetime.fromisoformat(dt_str).astimezone(timezone.utc)
 
 
-@endpoints.route("/api/raincz/list", methods=["GET"])
-def rain_cz_list():
+@endpoints.route("/api/<datatype>/list", methods=["GET"])
+def list_files(datatype):
+    directory = IMG_DIRS.get(datatype)
+    if not directory:
+        abort(404, f"Unknown data type '{datatype}'")
+
     start_str = request.args.get("start")
     end_str = request.args.get("end")
 
@@ -33,14 +37,15 @@ def rain_cz_list():
         abort(400, "Invalid ISO datetime format")
 
     results = []
-
-    for file_path in RAINCZ_DIR.glob("*.png"):
-        filename = file_path.name
+    for file_path in directory.glob("*.png"):
         try:
-            ts = extract_timestamp(filename)
+            ts = extract_timestamp(file_path.name)
             if start_dt <= ts <= end_dt:
                 results.append(
-                    {"timestamp": ts.isoformat(), "url": f"/raincz/{filename}"}
+                    {
+                        "timestamp": ts.isoformat(),
+                        "url": f"/{datatype}/{file_path.name}",
+                    }
                 )
         except ValueError:
             continue
@@ -49,48 +54,12 @@ def rain_cz_list():
     return jsonify(results)
 
 
-@endpoints.route("/api/raincz/<path:filename>")
-def rain_cz_file(filename):
+@endpoints.route("/api/<datatype>/<path:filename>")
+def serve_file(datatype, filename):
+    directory = IMG_DIRS.get(datatype)
+    if not directory:
+        abort(404, f"Unknown data type '{datatype}'")
     try:
-        return send_from_directory(str(RAINCZ_DIR), filename, mimetype="image/png")
-    except FileNotFoundError:
-        abort(404)
-
-
-@endpoints.route("/api/tempcz/list", methods=["GET"])
-def temp_cz_list():
-    start_str = request.args.get("start")
-    end_str = request.args.get("end")
-
-    if not start_str or not end_str:
-        abort(400, "'start' and 'end' query parameters are required (ISO format)")
-
-    try:
-        start_dt = parse_isoformat_z(start_str)
-        end_dt = parse_isoformat_z(end_str)
-    except ValueError:
-        abort(400, "Invalid ISO datetime format")
-
-    results = []
-
-    for file_path in TEMPCZ_DIR.glob("*.png"):
-        filename = file_path.name
-        try:
-            ts = extract_timestamp(filename)
-            if start_dt <= ts <= end_dt:
-                results.append(
-                    {"timestamp": ts.isoformat(), "url": f"/tempcz/{filename}"}
-                )
-        except ValueError:
-            continue
-
-    results.sort(key=lambda x: x["timestamp"])
-    return jsonify(results)
-
-
-@endpoints.route("/api/tempcz/<path:filename>")
-def temp_cz_file(filename):
-    try:
-        return send_from_directory(str(TEMPCZ_DIR), filename, mimetype="image/png")
+        return send_from_directory(str(directory), filename, mimetype="image/png")
     except FileNotFoundError:
         abort(404)

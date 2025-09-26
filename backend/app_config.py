@@ -1,4 +1,7 @@
 from pathlib import Path
 
-RAINCZ_DIR = Path("../telcorain-cli/outputs_web").resolve()
-TEMPCZ_DIR = Path("../telcotemp-cli/outputs_web").resolve()
+IMG_DIRS = {
+    "raincz": Path("../telcorain-cli/outputs_web").resolve(),
+    "tempcz": Path("../telcotemp-cli/outputs_web").resolve(),
+    "tempchmi": Path("../telcotemp-meteo-cli/outputs_web").resolve(),
+}
