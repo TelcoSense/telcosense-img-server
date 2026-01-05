@@ -7,9 +7,24 @@ from backend.app_config import IMG_DIRS
 endpoints = Blueprint("endpoints", __name__)
 
 
-def extract_timestamp(filename: str) -> datetime:
-    ts_str = filename[:-4]
-    return datetime.strptime(ts_str, "%Y-%m-%d_%H%M").replace(tzinfo=timezone.utc)
+def extract_timestamp_and_score(filename: str):
+    stem = filename[:-4]
+    parts = stem.split("_")
+    # old: ["YYYY-MM-DD", "HHMM"]
+    if len(parts) == 2:
+        ts = datetime.strptime(stem, "%Y-%m-%d_%H%M").replace(tzinfo=timezone.utc)
+        return ts, None
+    # new: ["YYYY-MM-DD", "HHMM", "<score>"]
+    if len(parts) >= 3:
+        ts_str = "_".join(parts[:2])  # YYYY-MM-DD_HHMM
+        ts = datetime.strptime(ts_str, "%Y-%m-%d_%H%M").replace(tzinfo=timezone.utc)
+        score = None
+        try:
+            score = float(parts[2])
+        except ValueError:
+            score = None
+        return ts, score
+    raise ValueError(f"Unrecognized filename format: {filename}")
 
 
 def parse_isoformat_z(dt_str: str) -> datetime:
@@ -23,33 +38,30 @@ def list_files(datatype):
     directory = IMG_DIRS.get(datatype)
     if not directory:
         abort(404, f"Unknown data type '{datatype}'")
-
     start_str = request.args.get("start")
     end_str = request.args.get("end")
-
     if not start_str or not end_str:
         abort(400, "'start' and 'end' query parameters are required (ISO format)")
-
     try:
         start_dt = parse_isoformat_z(start_str)
         end_dt = parse_isoformat_z(end_str)
     except ValueError:
         abort(400, "Invalid ISO datetime format")
-
     results = []
     for file_path in directory.glob("*.png"):
         try:
-            ts = extract_timestamp(file_path.name)
-            if start_dt <= ts <= end_dt:
-                results.append(
-                    {
-                        "timestamp": ts.isoformat(),
-                        "url": f"/{datatype}/{file_path.name}",
-                    }
-                )
+            ts, rain_score = extract_timestamp_and_score(file_path.name)
         except ValueError:
             continue
-
+        if start_dt <= ts <= end_dt:
+            item = {
+                "timestamp": ts.isoformat(),
+                "url": f"/{datatype}/{file_path.name}",
+            }
+            # include only when present
+            if rain_score is not None:
+                item["rain_score"] = rain_score
+            results.append(item)
     results.sort(key=lambda x: x["timestamp"])
     return jsonify(results)
 
