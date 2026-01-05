@@ -8,7 +8,7 @@ from backend.app_config import IMG_DIRS
 
 endpoints = Blueprint("endpoints", __name__)
 
-JSON_DIR = Path("../telcotemp-meteo-cli/outputs_json").resolve()  # ← adjust if needed
+JSON_DIR = Path("../telcorain/outputs_json").resolve()  # ← adjust if needed
 
 
 def extract_timestamp_and_score(filename: str):
