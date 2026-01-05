@@ -1,10 +1,14 @@
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import Blueprint, abort, jsonify, request, send_from_directory
 
 from backend.app_config import IMG_DIRS
 
 endpoints = Blueprint("endpoints", __name__)
+
+JSON_DIR = Path("../telcotemp-meteo-cli/outputs_json").resolve()  # ← adjust if needed
 
 
 def extract_timestamp_and_score(filename: str):
@@ -25,6 +29,11 @@ def extract_timestamp_and_score(filename: str):
             score = None
         return ts, score
     raise ValueError(f"Unrecognized filename format: {filename}")
+
+
+def extract_json_timestamp(filename: str) -> datetime:
+    stem = filename[:-5]  # remove ".json"
+    return datetime.strptime(stem, "%Y-%m-%d_%H%M").replace(tzinfo=timezone.utc)
 
 
 def parse_isoformat_z(dt_str: str) -> datetime:
@@ -75,3 +84,31 @@ def serve_file(datatype, filename):
         return send_from_directory(str(directory), filename, mimetype="image/png")
     except FileNotFoundError:
         abort(404)
+
+
+@endpoints.route("/api/drywet", methods=["GET"])
+def list_frames():
+    start_str = request.args.get("start")
+    end_str = request.args.get("end")
+    if not start_str or not end_str:
+        abort(400, "'start' and 'end' query parameters are required (ISO format)")
+    try:
+        start_dt = parse_isoformat_z(start_str)
+        end_dt = parse_isoformat_z(end_str)
+    except ValueError:
+        abort(400, "Invalid ISO datetime format")
+    results = []
+    for file_path in JSON_DIR.glob("*.json"):
+        try:
+            ts = extract_json_timestamp(file_path.name)
+        except ValueError:
+            continue
+        if start_dt <= ts <= end_dt:
+            try:
+                with file_path.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                continue
+            results.append(data)
+    results.sort(key=lambda x: x.get("utc", ""))
+    return jsonify(results)
