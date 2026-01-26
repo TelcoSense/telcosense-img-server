@@ -1,6 +1,6 @@
 # telcosense-img-server
 
-Simple raingrid data image server.
+Simple raingrid and temperature map image server.
 
 ## Overview
 
